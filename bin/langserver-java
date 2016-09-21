@@ -1,0 +1,5 @@
+#!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044 
+STDIO_MODE=1 java -Declipse.application=org.jboss.tools.vscode.java.id1 -Dlog.protocol=true -Dlog.level=ALL -Dosgi.bundles.defaultStartLevel=4 -Declipse.product=org.jboss.tools.vscode.java.product -DSTDIO_MODE=1 -jar $DIR/../org.jboss.tools.vscode.product/target/products/languageServer.product/linux/gtk/x86_64/plugins/org.eclipse.equinox.launcher_1.3.200.v20160318-1642.jar

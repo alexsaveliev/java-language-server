@@ -20,6 +20,7 @@ import org.jboss.tools.langs.base.ResponseError.ReservedCode;
 import org.jboss.tools.langs.transport.Connection;
 import org.jboss.tools.langs.transport.Connection.MessageListener;
 import org.jboss.tools.langs.transport.NamedPipeConnection;
+import org.jboss.tools.langs.transport.StdIoConnection;
 import org.jboss.tools.langs.transport.TransportMessage;
 import org.jboss.tools.vscode.internal.ipc.RequestHandler;
 
@@ -128,14 +129,19 @@ public abstract class LSPServer implements MessageListener{
 
 	public void connect(List<RequestHandler<?,?>> handlers ) throws IOException{
 		this.handlers = handlers;
-		final String stdInName = System.getenv("STDIN_PIPE_NAME");
-		final String stdOutName = System.getenv("STDOUT_PIPE_NAME");
-		if (stdInName == null || stdOutName == null) {
-			//XXX temporary hack to let unit tests run
-			System.err.println("Unable to connect to named pipes");
-			return;
+
+		if (System.getenv("STDIO_MODE") != null) {
+			connection = new StdIoConnection();
+		} else {
+			final String stdInName = System.getenv("STDIN_PIPE_NAME");
+			final String stdOutName = System.getenv("STDOUT_PIPE_NAME");
+			if (stdInName == null || stdOutName == null) {
+				//XXX temporary hack to let unit tests run
+				System.err.println("Unable to connect to named pipes");
+				return;
+			}
+			connection = new NamedPipeConnection(stdOutName, stdInName);
 		}
-		connection = new NamedPipeConnection(stdOutName, stdInName);
 		connection.setMessageListener(this);
 		connection.start();
 	}

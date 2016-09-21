@@ -57,8 +57,20 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 	
 	@Override
 	public InitializeResult handle(InitializeParams param) {
-		triggerInitialization(param.getRootPath());
-		JavaLanguageServerPlugin.getLanguageServer().setParentProcessId(param.getProcessId().longValue());
+
+		String rootPath = param.getRootPath();
+
+		// accepting file://PATH URI as well
+		if (rootPath.startsWith("file://")) {
+			rootPath = rootPath.substring(7);
+		}
+
+		triggerInitialization(rootPath);
+
+		// process ID is optional
+		if (param.getProcessId() != null) {
+			JavaLanguageServerPlugin.getLanguageServer().setParentProcessId(param.getProcessId().longValue());
+		}
 		InitializeResult result = new InitializeResult();
 		ServerCapabilities capabilities = new ServerCapabilities();
 		return result.withCapabilities(
