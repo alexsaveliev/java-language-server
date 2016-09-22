@@ -73,7 +73,7 @@ public class JavaClientConnection extends LSPServer{
 		handlers.add(new WorkspaceEventsHandler(pm,this));
 		handlers.add(new DocumentSymbolHandler());
 		handlers.add(new WorkspaceSymbolHandler());
-		handlers.add(new ReferencesHandler());
+		handlers.add(new ReferencesHandler(this));
 		handlers.add(new DocumentHighlightHandler());
 		FormatterHandler formatterHandler = new FormatterHandler();
 		handlers.add(formatterHandler.new DocFormatter());
