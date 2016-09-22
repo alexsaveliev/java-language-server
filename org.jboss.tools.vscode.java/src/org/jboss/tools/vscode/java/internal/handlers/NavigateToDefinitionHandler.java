@@ -20,11 +20,23 @@ import org.jboss.tools.langs.TextDocumentPositionParams;
 import org.jboss.tools.langs.base.LSPMethods;
 import org.jboss.tools.vscode.internal.ipc.RequestHandler;
 import org.jboss.tools.vscode.java.internal.JDTUtils;
+import org.jboss.tools.vscode.java.internal.JavaClientConnection;
 import org.jboss.tools.vscode.java.internal.JavaLanguageServerPlugin;
+import org.jboss.tools.vscode.java.internal.managers.ProjectsManager;
+
+import java.io.File;
+import java.net.URI;
 
 public class NavigateToDefinitionHandler implements RequestHandler<TextDocumentPositionParams, org.jboss.tools.langs.Location>{
 
-	public NavigateToDefinitionHandler() {
+	// SOURCEGRAPH: env
+	private static boolean MODE_SOURCEGRAPH = System.getenv("SOURCEGRAPH") != null;
+
+	// SOURCEGRAPH: connection object to share workspace root
+	private JavaClientConnection connection;
+
+	public NavigateToDefinitionHandler(JavaClientConnection connection) {
+		this.connection = connection;
 	}
 	
 	@Override
@@ -55,10 +67,24 @@ public class NavigateToDefinitionHandler implements RequestHandler<TextDocumentP
 	
 	@Override
 	public org.jboss.tools.langs.Location handle(TextDocumentPositionParams param) {
-		ITypeRoot unit = JDTUtils.resolveTypeRoot(param.getTextDocument().getUri());
+
+		String uri = param.getTextDocument().getUri();
+		if (MODE_SOURCEGRAPH) {
+			// SOURCEGRAPH: URI is expected to be in form file:///foo/bar,
+			// but we need to construct absolute file URI
+			uri = new File(connection.getWorkpaceRoot(), uri.substring(8)).toURI().toString();
+		}
+		ITypeRoot unit = JDTUtils.resolveTypeRoot(uri);
 		
-		return computeDefinitonNavigation(unit, param.getPosition().getLine().intValue(),
+		Location ret = computeDefinitonNavigation(unit, param.getPosition().getLine().intValue(),
 				param.getPosition().getCharacter().intValue());
+		if (MODE_SOURCEGRAPH) {
+			// SOURCEGRAPH: transforming location's URI back from file://WORKSPACE/foo/bar to file:///foo/bar
+			File file = new File(URI.create(ret.getUri()).getPath());
+			File root = new File(connection.getWorkpaceRoot());
+			ret.setUri("file:///" + root.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/'));
+		}
+		return ret;
 	}
 
 }

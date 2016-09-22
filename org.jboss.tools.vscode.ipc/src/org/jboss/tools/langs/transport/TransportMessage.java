@@ -69,11 +69,17 @@ public class TransportMessage {
 
 	static TransportMessage fromStream(InputStream inputStream, Charset charset)
 			throws IOException {
+		return fromReader(new LineReader(inputStream), charset);
+	}
+
+	// SOURCEGRAPH: added fromReader method - reader needs to be reused when reading multiple messages
+	// from stream, otherwise we may lose information (read into buffer of previous reader instance)
+	static TransportMessage fromReader(LineReader reader, Charset charset)
+			throws IOException {
 
 		Map<String, String> headers = new LinkedHashMap<>();
 
 		String contentLengthValue = null;
-		LineReader reader = new LineReader(inputStream);
 		while (true) { // read headers
 			String line = reader.readLine(charset);
 			if (line == null) {

@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.jboss.tools.langs.transport;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -17,12 +18,16 @@ import java.io.OutputStream;
 public class StdIoConnection extends AbstractStreamConnection {
 
 	@Override
-	protected InputStream connectReadChannel() throws IOException{
+	protected InputStream connectReadChannel() throws IOException {
+		String datafile = System.getenv("STDIO_DATA_FILE");
+		if (datafile != null) {
+			return new FileInputStream(datafile);
+		}
 		return System.in;
 	}
 
 	@Override
-	protected OutputStream connectWriteChannel() throws IOException{
+	protected OutputStream connectWriteChannel() throws IOException {
 		return System.out;
 	}
 

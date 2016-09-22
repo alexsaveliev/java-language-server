@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.jboss.tools.vscode.java.internal.handlers;
 
+import java.io.File;
 import java.util.List;
 
 import org.eclipse.core.filebuffers.FileBuffers;
@@ -44,6 +45,9 @@ import org.jboss.tools.vscode.java.internal.JavaClientConnection;
 import org.jboss.tools.vscode.java.internal.JavaLanguageServerPlugin;
 
 public class DocumentLifeCycleHandler {
+
+	// SOURCEGRAPH: env
+	private static boolean MODE_SOURCEGRAPH = System.getenv("SOURCEGRAPH") != null;
 
 	private JavaClientConnection connection;
 
@@ -135,7 +139,15 @@ public class DocumentLifeCycleHandler {
 	}
 
 	private void handleOpen(DidOpenTextDocumentParams params) {
-		ICompilationUnit unit = JDTUtils.resolveCompilationUnit(params.getTextDocument().getUri());
+
+		String uri = params.getTextDocument().getUri();
+		if (MODE_SOURCEGRAPH) {
+			// SOURCEGRAPH: URI is expected to be in form file:///foo/bar,
+			// but we need to construct absolute file URI
+			uri = new File(connection.getWorkpaceRoot(), uri.substring(8)).toURI().toString();
+		}
+
+		ICompilationUnit unit = JDTUtils.resolveCompilationUnit(uri);
 		if (unit == null) {
 			return;
 		}

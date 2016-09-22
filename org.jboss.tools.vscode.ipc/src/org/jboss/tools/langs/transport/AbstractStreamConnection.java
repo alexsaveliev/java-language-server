@@ -40,10 +40,14 @@ public abstract class AbstractStreamConnection extends AbstractConnection {
 				//TODO: write failed to connect.
 			}
 
+			LineReader reader = new LineReader(this.stream);
+
 			while(true){
 				TransportMessage message;
 				try {
-					message = TransportMessage.fromStream(stream, DEFAULT_CHARSET);
+					// SOURCEGRAPH: replaced TransportMessage.fromStream with TransportMessage.fromReader
+					// to reuse reader
+					message = TransportMessage.fromReader(reader, DEFAULT_CHARSET);
 					if(message == null ){
 						//Stream disconnected exit reader thread
 						IPCPlugin.logError("Empty message read");

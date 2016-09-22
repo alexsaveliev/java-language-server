@@ -10,6 +10,8 @@
  *******************************************************************************/
 package org.jboss.tools.vscode.java.internal.handlers;
 
+import java.io.File;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,11 +38,19 @@ import org.jboss.tools.langs.ReferenceParams;
 import org.jboss.tools.langs.base.LSPMethods;
 import org.jboss.tools.vscode.internal.ipc.RequestHandler;
 import org.jboss.tools.vscode.java.internal.JDTUtils;
+import org.jboss.tools.vscode.java.internal.JavaClientConnection;
 import org.jboss.tools.vscode.java.internal.JavaLanguageServerPlugin;
 
 public class ReferencesHandler implements RequestHandler<ReferenceParams, List<Location>>{
 
-	public ReferencesHandler() {
+	// SOURCEGRAPH: env
+	private static boolean MODE_SOURCEGRAPH = System.getenv("SOURCEGRAPH") != null;
+
+	// SOURCEGRAPH: connection object to share workspace root
+	private JavaClientConnection connection;
+
+	public ReferencesHandler(JavaClientConnection connection) {
+		this.connection = connection;
 	}
 
 	@Override
@@ -68,8 +78,15 @@ public class ReferencesHandler implements RequestHandler<ReferenceParams, List<L
 	public List<org.jboss.tools.langs.Location> handle(org.jboss.tools.langs.ReferenceParams param) {
 		SearchEngine engine = new SearchEngine();
 
+		String uri = param.getTextDocument().getUri();
+		if (MODE_SOURCEGRAPH) {
+			// SOURCEGRAPH: URI is expected to be in form file:///foo/bar,
+			// but we need to construct absolute file URI
+			uri = new File(connection.getWorkpaceRoot(), uri.substring(8)).toURI().toString();
+		}
+
 		try {
-			IJavaElement elementToSearch = findElementAtSelection(JDTUtils.resolveTypeRoot(param.getTextDocument().getUri()),
+			IJavaElement elementToSearch = findElementAtSelection(JDTUtils.resolveTypeRoot(uri),
 					param.getPosition().getLine().intValue(),
 					param.getPosition().getCharacter().intValue());
 			
@@ -100,6 +117,12 @@ public class ReferencesHandler implements RequestHandler<ReferenceParams, List<L
 									}
 								}
 								if (location != null )
+									if (MODE_SOURCEGRAPH) {
+										// SOURCEGRAPH: transforming location's URI back from file://WORKSPACE/foo/bar to file:///foo/bar
+										File file = new File(URI.create(location.getUri()).getPath());
+										File root = new File(connection.getWorkpaceRoot());
+										location.setUri("file:///" + root.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/'));
+									}
 									locations.add(location);
 
 							}

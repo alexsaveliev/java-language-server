@@ -17,10 +17,20 @@ import org.jboss.tools.langs.base.LSPMethods;
 import org.jboss.tools.vscode.internal.ipc.RequestHandler;
 import org.jboss.tools.vscode.java.internal.HoverInfoProvider;
 import org.jboss.tools.vscode.java.internal.JDTUtils;
+import org.jboss.tools.vscode.java.internal.JavaClientConnection;
+
+import java.io.File;
 
 public class HoverHandler implements RequestHandler<TextDocumentPositionParams, Hover>{
-	
-	public HoverHandler() {
+
+	// SOURCEGRAPH: env
+	private static boolean MODE_SOURCEGRAPH = System.getenv("SOURCEGRAPH") != null;
+
+	// SOURCEGRAPH: connection object to share workspace root
+	private JavaClientConnection connection;
+
+	public HoverHandler(JavaClientConnection connection) {
+		this.connection = connection;
 	}
 
 	@Override
@@ -30,7 +40,15 @@ public class HoverHandler implements RequestHandler<TextDocumentPositionParams, 
 
 	@Override
 	public Hover handle(TextDocumentPositionParams param) {
-		ITypeRoot unit = JDTUtils.resolveTypeRoot(param.getTextDocument().getUri());
+
+		String uri = param.getTextDocument().getUri();
+		if (MODE_SOURCEGRAPH) {
+			// SOURCEGRAPH: URI is expected to be in form file:///foo/bar,
+			// but we need to construct absolute file URI
+			uri = new File(connection.getWorkpaceRoot(), uri.substring(8)).toURI().toString();
+		}
+
+		ITypeRoot unit = JDTUtils.resolveTypeRoot(uri);
 		
 		String hover = computeHover(unit ,param.getPosition().getLine().intValue(),
 				param.getPosition().getCharacter().intValue());

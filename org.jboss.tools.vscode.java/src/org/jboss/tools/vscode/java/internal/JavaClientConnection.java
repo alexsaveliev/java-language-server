@@ -46,6 +46,9 @@ public class JavaClientConnection extends LSPServer{
 	private LogHandler logHandler;
 	private ProjectsManager projectsManager;
 
+	// SOURCEGRAPH
+	private String workspaceRoot;
+
 	public JavaClientConnection() {
 		projectsManager = new ProjectsManager();
 		logHandler = new LogHandler();
@@ -58,7 +61,7 @@ public class JavaClientConnection extends LSPServer{
 		handlers.add(new InitHandler(pm, this));
 		handlers.add(new ShutdownHandler());
 		handlers.add(new ExitHandler());
-		handlers.add(new HoverHandler());
+		handlers.add(new HoverHandler(this));
 		DocumentLifeCycleHandler dh = new DocumentLifeCycleHandler(this);
 		handlers.add(dh.new ChangeHandler());
 		handlers.add(dh.new ClosedHandler());
@@ -66,7 +69,7 @@ public class JavaClientConnection extends LSPServer{
 		handlers.add(dh.new SaveHandler());
 		handlers.add(new CompletionHandler());
 		handlers.add(new CompletionResolveHandler());
-		handlers.add(new NavigateToDefinitionHandler());
+		handlers.add(new NavigateToDefinitionHandler(this));
 		handlers.add(new WorkspaceEventsHandler(pm,this));
 		handlers.add(new DocumentSymbolHandler());
 		handlers.add(new WorkspaceSymbolHandler());
@@ -115,6 +118,16 @@ public class JavaClientConnection extends LSPServer{
 			logHandler.uninstall();
 			logHandler = null;
 		}
+	}
+
+	// SOURCEGRAPH: setter for workspaceRoot
+	public void setWorkspaceRoot(String workspaceRoot) {
+		this.workspaceRoot = workspaceRoot;
+	}
+
+	// SOURCEGRAPH: getter for workspaceRoot
+	public String getWorkpaceRoot() {
+		return workspaceRoot;
 	}
 
 }

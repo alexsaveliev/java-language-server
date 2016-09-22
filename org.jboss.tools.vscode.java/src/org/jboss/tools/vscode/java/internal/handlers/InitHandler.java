@@ -40,7 +40,10 @@ import org.jboss.tools.vscode.java.internal.managers.ProjectsManager;
  *
  */
 final public class InitHandler implements RequestHandler<InitializeParams, InitializeResult> {
-	
+
+	// SOURCEGRAPH: added env
+	private static boolean MODE_SOURCEGRAPH = System.getenv("SOURCEGRAPH") != null;
+
 	private ProjectsManager projectsManager;
 	private JavaClientConnection connection;
 
@@ -60,9 +63,10 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 
 		String rootPath = param.getRootPath();
 
-		// accepting file://PATH URI as well
-		if (rootPath.startsWith("file://")) {
+		if (MODE_SOURCEGRAPH) {
+			// SOURCEGRAPH: accepting file://PATH URI
 			rootPath = rootPath.substring(7);
+			connection.setWorkspaceRoot(rootPath);
 		}
 
 		triggerInitialization(rootPath);
