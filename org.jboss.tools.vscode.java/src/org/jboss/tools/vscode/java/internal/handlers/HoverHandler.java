@@ -49,7 +49,10 @@ public class HoverHandler implements RequestHandler<TextDocumentPositionParams, 
 		}
 
 		ITypeRoot unit = JDTUtils.resolveTypeRoot(uri);
-		
+		if (unit == null) {
+			return null;
+		}
+
 		String hover = computeHover(unit ,param.getPosition().getLine().intValue(),
 				param.getPosition().getCharacter().intValue());
 		Hover $ = new Hover();

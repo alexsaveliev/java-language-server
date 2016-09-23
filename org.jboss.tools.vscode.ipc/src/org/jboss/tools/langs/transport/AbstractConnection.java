@@ -12,6 +12,7 @@ package org.jboss.tools.langs.transport;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.jboss.tools.vscode.internal.ipc.IPCPlugin;
 
@@ -22,20 +23,28 @@ public abstract class AbstractConnection implements Connection {
 	protected final BlockingQueue<TransportMessage> inboundQueue = new LinkedBlockingQueue<TransportMessage>();
 	protected final BlockingQueue<TransportMessage> outboundQueue = new LinkedBlockingQueue<TransportMessage>();
 
+	protected DispatcherThread dispatcherThread;
+
 	/**
 	 * Dispatches the messages received
 	 */
-	private class DispatcherThread extends Thread {
+	protected class DispatcherThread extends Thread {
+
+		private boolean stopped;
+
 		public DispatcherThread() {
 			super("LSP_DispatcherThread");
 		}
-			
+
 		@Override
 		public void run() {
 			TransportMessage message;
 			try {
-				while (true) {
-					message = inboundQueue.take();
+				while (!stopped) {
+					message = inboundQueue.poll(1, TimeUnit.SECONDS);
+					if (message == null) {
+						continue;
+					}
 					if (listener != null) {
 						try {
 							IPCPlugin.logInfo("Dispatch incoming" + message.getContent());
@@ -48,6 +57,10 @@ public abstract class AbstractConnection implements Connection {
 			} catch (InterruptedException e) {
 				// stop the dispatcher thread
 			}
+		}
+
+		public void shutdown() {
+			stopped = true;
 		}
 	}
 
@@ -64,7 +77,6 @@ public abstract class AbstractConnection implements Connection {
 	 * Must be called by implementers to start dispatching of incoming messages.
 	 */
 	protected void startDispatcherThread() {
-		DispatcherThread dispatcherThread;
 		dispatcherThread = new DispatcherThread();
 		dispatcherThread.setDaemon(true);
 		dispatcherThread.start();

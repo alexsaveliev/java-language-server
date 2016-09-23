@@ -10,6 +10,9 @@
  *******************************************************************************/
 package org.jboss.tools.vscode.java.internal.handlers;
 
+import java.io.File;
+import java.net.URI;
+
 import org.eclipse.jdt.core.IClassFile;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
@@ -22,10 +25,6 @@ import org.jboss.tools.vscode.internal.ipc.RequestHandler;
 import org.jboss.tools.vscode.java.internal.JDTUtils;
 import org.jboss.tools.vscode.java.internal.JavaClientConnection;
 import org.jboss.tools.vscode.java.internal.JavaLanguageServerPlugin;
-import org.jboss.tools.vscode.java.internal.managers.ProjectsManager;
-
-import java.io.File;
-import java.net.URI;
 
 public class NavigateToDefinitionHandler implements RequestHandler<TextDocumentPositionParams, org.jboss.tools.langs.Location>{
 
@@ -38,7 +37,7 @@ public class NavigateToDefinitionHandler implements RequestHandler<TextDocumentP
 	public NavigateToDefinitionHandler(JavaClientConnection connection) {
 		this.connection = connection;
 	}
-	
+
 	@Override
 	public boolean canHandle(String request) {
 		return LSPMethods.DOCUMENT_DEFINITION.getMethod().equals(request);
@@ -64,7 +63,7 @@ public class NavigateToDefinitionHandler implements RequestHandler<TextDocumentP
 		}
 		return null;
 	}
-	
+
 	@Override
 	public org.jboss.tools.langs.Location handle(TextDocumentPositionParams param) {
 
@@ -75,7 +74,10 @@ public class NavigateToDefinitionHandler implements RequestHandler<TextDocumentP
 			uri = new File(connection.getWorkpaceRoot(), uri.substring(8)).toURI().toString();
 		}
 		ITypeRoot unit = JDTUtils.resolveTypeRoot(uri);
-		
+		if (unit == null) {
+			return null;
+		}
+
 		Location ret = computeDefinitonNavigation(unit, param.getPosition().getLine().intValue(),
 				param.getPosition().getCharacter().intValue());
 		if (MODE_SOURCEGRAPH) {

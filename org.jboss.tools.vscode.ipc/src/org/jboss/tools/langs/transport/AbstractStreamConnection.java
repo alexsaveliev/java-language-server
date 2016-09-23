@@ -16,15 +16,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractStreamConnection extends AbstractConnection {
 
 	private InputStream inputStream;
 	private OutputStream outputStream;
 
+	private ReaderThread readerThread;
+	private WriterThread writerThread;
+
 	private class ReaderThread extends Thread {
 
 		private final InputStream stream;
+
+		private boolean stopped;
 
 		ReaderThread(InputStream input ) {
 			super("LSP_ReaderThread");
@@ -42,7 +48,7 @@ public abstract class AbstractStreamConnection extends AbstractConnection {
 
 			LineReader reader = new LineReader(this.stream);
 
-			while(true){
+			while(!stopped){
 				TransportMessage message;
 				try {
 					// SOURCEGRAPH: replaced TransportMessage.fromStream with TransportMessage.fromReader
@@ -50,7 +56,6 @@ public abstract class AbstractStreamConnection extends AbstractConnection {
 					message = TransportMessage.fromReader(reader, DEFAULT_CHARSET);
 					if(message == null ){
 						//Stream disconnected exit reader thread
-						IPCPlugin.logError("Empty message read");
 						break;
 					}
 					inboundQueue.add(message);
@@ -59,11 +64,22 @@ public abstract class AbstractStreamConnection extends AbstractConnection {
 				}
 			}
 		}
+
+		public void shutdown() {
+			stopped = true;
+			try {
+				stream.close();
+			} catch (IOException e) {
+				// TODO
+			}
+		}
 	}
 
 	private class WriterThread extends Thread {
 
 		private final OutputStream stream;
+
+		private boolean stopped;
 
 		WriterThread(OutputStream output) {
 			super("LSP_WriterThread");
@@ -74,16 +90,30 @@ public abstract class AbstractStreamConnection extends AbstractConnection {
 		public void run() {
 			while (true) {
 				try {
-					TransportMessage message = outboundQueue.take();
+					TransportMessage message = outboundQueue.poll(1, TimeUnit.SECONDS);
+					if (message == null) {
+						if (stopped) {
+							break;
+						}
+						continue;
+					}
 					message.send(stream, DEFAULT_CHARSET);
 					stream.flush();
 				} catch (InterruptedException e) {
 					break;//exit
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					// NOOP
 				}
 			}
+			try {
+				stream.close();
+			} catch (IOException e) {
+				// TODO
+			}
+		}
+
+		public void shutdown() {
+			this.stopped = true;
 		}
 	}
 
@@ -98,32 +128,25 @@ public abstract class AbstractStreamConnection extends AbstractConnection {
 	@Override
 	public void start() throws IOException {
 		this.inputStream = connectReadChannel();
-		ReaderThread readerThread = new ReaderThread(inputStream);
+		readerThread = new ReaderThread(inputStream);
 		readerThread.setDaemon(true);
 		readerThread.start();
 	}
-	
+
 	public void startWriterThread() throws IOException{
 		this.outputStream = connectWriteChannel();
-		WriterThread writerThread = new WriterThread(outputStream);
+		writerThread = new WriterThread(outputStream);
 		writerThread.setDaemon(true);
 		writerThread.start();
 	}
-	
+
 	@Override
 	public void close() {
-		try {
-			inputStream.close();
-		} catch (IOException e) {
-			// TODO
-		}
-		try {
-			outputStream.close();
-		} catch (IOException e) {
-			// TODO
-		}
+		dispatcherThread.shutdown();
+		readerThread.shutdown();
+		writerThread.shutdown();
 	}
-	
+
 	protected abstract InputStream connectReadChannel() throws IOException;
 	protected abstract OutputStream connectWriteChannel() throws IOException;
 

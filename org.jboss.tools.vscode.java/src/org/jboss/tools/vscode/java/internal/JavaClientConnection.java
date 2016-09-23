@@ -19,6 +19,7 @@ import org.jboss.tools.langs.base.LSPMethods;
 import org.jboss.tools.langs.base.LSPServer;
 import org.jboss.tools.langs.base.NotificationMessage;
 import org.jboss.tools.langs.ext.StatusReport;
+import org.jboss.tools.langs.transport.Connection;
 import org.jboss.tools.vscode.internal.ipc.MessageType;
 import org.jboss.tools.vscode.internal.ipc.RequestHandler;
 import org.jboss.tools.vscode.internal.ipc.ServiceStatus;
@@ -49,7 +50,8 @@ public class JavaClientConnection extends LSPServer{
 	// SOURCEGRAPH
 	private String workspaceRoot;
 
-	public JavaClientConnection() {
+	public JavaClientConnection(Connection connection) {
+		super(connection);
 		projectsManager = new ProjectsManager();
 		logHandler = new LogHandler();
 		logHandler.install(this);		
@@ -59,7 +61,7 @@ public class JavaClientConnection extends LSPServer{
 		List<RequestHandler<?,?>> handlers = new ArrayList<RequestHandler<?,?>>();
 		//server lifeCycle
 		handlers.add(new InitHandler(pm, this));
-		handlers.add(new ShutdownHandler());
+		handlers.add(new ShutdownHandler(this));
 		handlers.add(new ExitHandler());
 		handlers.add(new HoverHandler(this));
 		DocumentLifeCycleHandler dh = new DocumentLifeCycleHandler(this);

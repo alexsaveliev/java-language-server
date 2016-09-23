@@ -12,10 +12,17 @@ package org.jboss.tools.vscode.java.internal.handlers;
 
 import org.jboss.tools.langs.base.LSPMethods;
 import org.jboss.tools.vscode.internal.ipc.RequestHandler;
+import org.jboss.tools.vscode.java.internal.JavaClientConnection;
 import org.jboss.tools.vscode.java.internal.JavaLanguageServerPlugin;
 
 public class ShutdownHandler implements RequestHandler<Object, Object> {
 
+	// SOURCEGRAPH: connection object
+	private JavaClientConnection connection;
+
+	public ShutdownHandler(JavaClientConnection connection) {
+		this.connection = connection;
+	}
 
 	@Override
 	public boolean canHandle(String request) {
@@ -24,6 +31,22 @@ public class ShutdownHandler implements RequestHandler<Object, Object> {
 
 	@Override
 	public Object handle(Object param) {
+		if (System.getenv("SOCKET_MODE") != null) {
+			// delayed connection shutdown
+			new Thread() {
+				@Override
+				public void run() {
+					try {
+						Thread.sleep(3000);
+					} catch (InterruptedException e) {
+						// NOOP
+					}
+					connection.shutdown();
+				}
+			}.run();
+			return new Object();
+		}
+
 		JavaLanguageServerPlugin.logInfo("Shutting down Java Language Server");
 		JavaLanguageServerPlugin.getLanguageServer().shutdown();
 		return new Object();

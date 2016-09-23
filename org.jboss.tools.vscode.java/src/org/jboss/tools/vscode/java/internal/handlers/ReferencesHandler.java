@@ -85,8 +85,14 @@ public class ReferencesHandler implements RequestHandler<ReferenceParams, List<L
 			uri = new File(connection.getWorkpaceRoot(), uri.substring(8)).toURI().toString();
 		}
 
+		ITypeRoot unit = JDTUtils.resolveTypeRoot(uri);
+
+		if (unit == null) {
+			return null;
+		}
+
 		try {
-			IJavaElement elementToSearch = findElementAtSelection(JDTUtils.resolveTypeRoot(uri),
+			IJavaElement elementToSearch = findElementAtSelection(unit,
 					param.getPosition().getLine().intValue(),
 					param.getPosition().getCharacter().intValue());
 			

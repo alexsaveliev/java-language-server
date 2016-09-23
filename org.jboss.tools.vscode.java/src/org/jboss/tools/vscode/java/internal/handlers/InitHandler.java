@@ -34,7 +34,7 @@ import org.jboss.tools.vscode.java.internal.managers.ProjectsManager;
 
 /**
  * Handler for the VS Code extension life cycle events.
- * 
+ *
  * @author Gorkem Ercan
  * @author IBM Corporation (Markus Keller)
  *
@@ -43,6 +43,9 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 
 	// SOURCEGRAPH: added env
 	private static boolean MODE_SOURCEGRAPH = System.getenv("SOURCEGRAPH") != null;
+
+	// SOURCEGRAPH: forced workspace root to use
+	private static String FORCE_WORKSPACE_ROOT = System.getenv("FORCE_WORKSPACE_ROOT");
 
 	private ProjectsManager projectsManager;
 	private JavaClientConnection connection;
@@ -57,7 +60,7 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 		return LSPMethods.INITIALIZE.getMethod().equals(request);
 	}
 
-	
+
 	@Override
 	public InitializeResult handle(InitializeParams param) {
 
@@ -66,6 +69,9 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 		if (MODE_SOURCEGRAPH) {
 			// SOURCEGRAPH: accepting file://PATH URI
 			rootPath = rootPath.substring(7);
+			if (FORCE_WORKSPACE_ROOT != null) {
+				rootPath = FORCE_WORKSPACE_ROOT;
+			}
 			connection.setWorkspaceRoot(rootPath);
 		}
 
@@ -94,6 +100,7 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 
 	private void triggerInitialization(String root) {
 		Job job = new Job("Initialize Workspace") {
+			@Override
 			protected IStatus run(IProgressMonitor monitor) {
 				connection.sendStatus(ServiceStatus.Starting, "Init...");
 				IStatus status = projectsManager.createProject(root, new ArrayList<IProject>(), new ServerStatusMonitor());
@@ -107,7 +114,7 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 
 			private String getMessage(IStatus status) {
 				String msg = status.getMessage();
-				if  (msg != null && !msg.isEmpty()) {
+				if (msg != null && !msg.isEmpty()) {
 					return msg;
 				}
 				msg = "Initialization failed";
@@ -121,13 +128,13 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 		job.setRule(ResourcesPlugin.getWorkspace().getRoot());
 		job.schedule(); // small delay to not start sending status before initialize message has arrived
 	}
-	
+
 	private class ServerStatusMonitor extends NullProgressMonitor{
 		private double totalWork;
 		private double progress;
 		@Override
 		public void beginTask(String arg0, int totalWork) {
-			this.totalWork = totalWork; 
+			this.totalWork = totalWork;
 		}
 
 		@Override
@@ -135,6 +142,6 @@ final public class InitHandler implements RequestHandler<InitializeParams, Initi
 			progress += work;
 			connection.sendStatus(ServiceStatus.Starting,  String.format( "%.0f%%", progress/totalWork * 100));
 		}
-		
+
 	}
 }
